@@ -3,21 +3,39 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Virtual environment
+# C extensions
+*.so
+
+# Virtual environment and env files
 .venv/
 venv/
 env/
+.env
+.envrc
 
 # Tooling/cache folders
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.pyre/
+.tox/
+.nox/
 .coverage
+.coverage.*
 htmlcov/
+.hypothesis/
+.ipynb_checkpoints/
+
+# Build/distribution
+build/
+dist/
+*.egg-info/
+*.egg
 
 # Editor/OS artifacts
 .DS_Store
 Thumbs.db
+.vscode/
 
 # Runtime and local data
 uploads/
@@ -25,6 +43,7 @@ runs/
 static/captures/
 *.db
 *.sqlite3
+instance/
 
 # ML artifacts (large/generated)
 *.pt
