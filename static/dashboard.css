@@ -1,0 +1,79 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: Arial, sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }
+h1 { text-align: center; margin-bottom: 20px; color: #00e676; }
+h2 { color: #00e676; margin-bottom: 15px; }
+.container { max-width: 1200px; margin: 0 auto; }
+.grid { display: grid; gap: 20px; grid-template-columns: 1fr 1fr; margin-bottom: 20px; }
+.card { background: #16213e; border-radius: 8px; padding: 16px; border: 1px solid #223; }
+
+.video-section img,
+#live-frame {
+    width: 100%;
+    border: 2px solid #00e676;
+    border-radius: 8px;
+    min-height: 280px;
+    object-fit: cover;
+}
+
+.status { text-align: center; margin-top: 8px; font-size: 0.9em; color: #bbb; }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #333; }
+th { background: #0f1a33; color: #00e676; }
+tr:hover { background: #13213e; }
+
+.capture-img { width: 120px; border-radius: 4px; cursor: pointer; }
+.capture-placeholder {
+    width: 120px; height: 80px; border-radius: 4px;
+    background: #16213e; border: 1px dashed #555;
+    display: flex; align-items: center; justify-content: center;
+    color: #666; font-size: 0.75em;
+}
+
+.chat-history {
+    height: 260px;
+    overflow-y: auto;
+    border: 1px solid #2b3654;
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 10px;
+    background: #101a30;
+}
+
+.chat-message {
+    margin-bottom: 10px;
+    padding: 8px;
+    border-radius: 6px;
+    white-space: pre-wrap;
+}
+
+.chat-message.user { background: #1f2b4d; }
+.chat-message.assistant { background: #223322; }
+.chat-message.error { background: #5b1f1f; }
+
+#chat-form { display: grid; gap: 8px; }
+#chat-input {
+    width: 100%;
+    min-height: 84px;
+    resize: vertical;
+    border-radius: 6px;
+    border: 1px solid #3f4e78;
+    background: #0f1a33;
+    color: #eee;
+    padding: 10px;
+}
+button {
+    background: #00e676;
+    border: none;
+    color: #111;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+}
+button:hover { opacity: 0.9; }
+.no-events { text-align: center; color: #888; padding: 30px; }
+
+@media (max-width: 960px) {
+    .grid { grid-template-columns: 1fr; }
+}
