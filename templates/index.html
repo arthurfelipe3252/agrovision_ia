@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgroVision AI</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }
+        h1 { text-align: center; margin-bottom: 20px; color: #00e676; }
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        .video-section { text-align: center; margin-bottom: 30px; }
+        .video-section img {
+            max-width: 100%;
+            border: 2px solid #00e676;
+            border-radius: 8px;
+        }
+
+        h2 { color: #00e676; margin-bottom: 15px; }
+
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #333; }
+        th { background: #16213e; color: #00e676; }
+        tr:hover { background: #16213e; }
+
+        .capture-img { width: 120px; border-radius: 4px; cursor: pointer; }
+        .capture-img:hover { opacity: 0.8; }
+        .capture-placeholder {
+            width: 120px; height: 80px; border-radius: 4px;
+            background: #16213e; border: 1px dashed #555;
+            display: flex; align-items: center; justify-content: center;
+            color: #666; font-size: 0.75em;
+        }
+
+        .no-events { text-align: center; color: #888; padding: 40px; }
+
+        .status { text-align: center; margin-bottom: 10px; font-size: 0.9em; color: #888; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AgroVision AI</h1>
+
+        <div class="video-section">
+            <h2>Feed ao Vivo</h2>
+            <img id="live-frame" src="/frame" alt="Feed da camera">
+            <p class="status" id="status">Conectado</p>
+        </div>
+
+        <h2>Ultimos Eventos</h2>
+        <div id="events-container">
+            <p class="no-events">Nenhum evento registrado ainda.</p>
+        </div>
+    </div>
+
+    <script>
+        const img = document.getElementById('live-frame');
+        const status = document.getElementById('status');
+
+        function refreshFrame() {
+            const newImg = new Image();
+            newImg.onload = function () {
+                img.src = newImg.src;
+                status.textContent = 'Conectado';
+            };
+            newImg.onerror = function () {
+                status.textContent = 'Aguardando camera...';
+            };
+            newImg.src = '/frame?' + Date.now();
+        }
+
+        setInterval(refreshFrame, 200);
+
+        function refreshEvents() {
+            fetch('/events')
+                .then(r => r.json())
+                .then(events => {
+                    const container = document.getElementById('events-container');
+                    if (!events.length) {
+                        container.innerHTML = '<p class="no-events">Nenhum evento registrado ainda.</p>';
+                        return;
+                    }
+                    let html = '<table><thead><tr><th>Data/Hora</th><th>Classe</th><th>Confianca</th><th>Imagem</th></tr></thead><tbody>';
+                    events.forEach(e => {
+                        html += `<tr>
+                            <td>${e.event_time}</td>
+                            <td>${e.label}</td>
+                            <td>${e.confidence.toFixed(2)}</td>
+                            <td><img class="capture-img" src="${e.image_path}" alt="${e.label}"
+                                 onerror="this.outerHTML='<div class=\\'capture-placeholder\\'>Sem imagem</div>'"></td>
+                        </tr>`;
+                    });
+                    html += '</tbody></table>';
+                    container.innerHTML = html;
+                });
+        }
+
+        refreshEvents();
+        setInterval(refreshEvents, 3000);
+    </script>
+</body>
+</html>

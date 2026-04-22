@@ -1,0 +1,37 @@
+# Python cache/bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Tooling/cache folders
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editor/OS artifacts
+.DS_Store
+Thumbs.db
+
+# Runtime and local data
+uploads/
+runs/
+static/captures/
+*.db
+*.sqlite3
+
+# ML artifacts (large/generated)
+*.pt
+*.onnx
+*.engine
+models/
+dataset_agro/
+
+# Logs
+*.log
