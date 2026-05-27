@@ -1,5 +1,18 @@
+"""Functional core do agente — sem I/O e sem dependencias do projeto.
+
+As politicas de seguranca (sanitizacao da pergunta, regras defensivas)
+sao **injetadas** pelos chamadores como parametros. Manter este modulo
+puro permite testa-lo com fixtures triviais e mantem fronteiras claras
+entre dominio do agente e camada de seguranca.
+"""
+
 from dataclasses import dataclass
 from statistics import mean
+from typing import Callable
+
+
+def _identity(value: str) -> str:
+    return value
 
 
 @dataclass(frozen=True)
@@ -16,13 +29,18 @@ AGENT_PROFILE = AgentProfile(
 )
 
 
-def normalize_history(history: list[dict], max_messages: int) -> list[dict]:
-    normalized = []
+def normalize_history(
+    history: list[dict],
+    max_messages: int,
+    sanitize_user: Callable[[str], str] = _identity,
+) -> list[dict]:
+    normalized: list[dict] = []
     for item in history[-max_messages:]:
         role = item.get("role", "").strip()
         content = item.get("content", "").strip()
         if role in {"user", "assistant"} and content:
-            normalized.append({"role": role, "content": content})
+            payload = sanitize_user(content) if role == "user" else content
+            normalized.append({"role": role, "content": payload})
     return normalized
 
 
@@ -63,7 +81,12 @@ def build_event_context(events: list[dict]) -> str:
 
 
 def build_agent_messages(
-    question: str, history: list[dict], events: list[dict], max_history_messages: int
+    question: str,
+    history: list[dict],
+    events: list[dict],
+    max_history_messages: int,
+    sanitize_user: Callable[[str], str] = _identity,
+    defensive_rules: str | None = None,
 ) -> list[dict]:
     system_prompt = (
         f"Voce e o {AGENT_PROFILE.name}, um agente de {AGENT_PROFILE.role}. "
@@ -76,9 +99,12 @@ def build_agent_messages(
         "Quando fizer sentido, organize a resposta em: leitura, risco e recomendacao."
     )
 
-    return [
-        {"role": "system", "content": system_prompt},
-        {"role": "system", "content": build_event_context(events)},
-        *normalize_history(history, max_messages=max_history_messages),
-        {"role": "user", "content": question.strip()},
-    ]
+    messages: list[dict] = [{"role": "system", "content": system_prompt}]
+    if defensive_rules:
+        messages.append({"role": "system", "content": defensive_rules})
+    messages.append({"role": "system", "content": build_event_context(events)})
+    messages.extend(
+        normalize_history(history, max_messages=max_history_messages, sanitize_user=sanitize_user)
+    )
+    messages.append({"role": "user", "content": sanitize_user(question)})
+    return messages

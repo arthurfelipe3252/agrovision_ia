@@ -6,15 +6,28 @@
     <title>AgroVision AI</title>
     <link rel="stylesheet" href="/static/dashboard.css">
 </head>
-<body>
+<body data-api-key-required="{{ 'true' if api_key_required else 'false' }}">
     <div class="container">
         <h1>AgroVision AI</h1>
+
+        <section class="card api-key-card" id="api-key-card" hidden>
+            <h2>Credencial de Acesso</h2>
+            <p class="hint">Cole sua API key para usar as rotas protegidas. Ela e armazenada apenas localmente no seu navegador.</p>
+            <form id="api-key-form">
+                <input id="api-key-input" type="password" placeholder="X-API-Key" autocomplete="off" required>
+                <div class="api-key-actions">
+                    <button type="submit">Salvar</button>
+                    <button type="button" id="api-key-clear">Remover</button>
+                </div>
+                <p class="api-key-status" id="api-key-status"></p>
+            </form>
+        </section>
 
         <div class="grid">
             <section class="card">
                 <h2>Feed ao Vivo</h2>
-                <img id="live-frame" src="/frame" alt="Feed da camera">
-                <p class="status" id="status">Conectado</p>
+                <img id="live-frame" alt="Feed da camera">
+                <p class="status" id="status">Conectando...</p>
             </section>
 
             <section class="card">

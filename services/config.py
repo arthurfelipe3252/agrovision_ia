@@ -1,20 +1,7 @@
 import os
 from dataclasses import dataclass
 
-
-def _load_env_file(path: str = ".env") -> None:
-    if not os.path.exists(path):
-        return
-    with open(path, "r", encoding="utf-8") as file:
-        for raw_line in file:
-            line = raw_line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, value = line.split("=", 1)
-            key = key.strip()
-            value = value.strip().strip('"').strip("'")
-            if key and key not in os.environ:
-                os.environ[key] = value
+from dotenv import load_dotenv
 
 
 def _parse_source(raw_source: str):
@@ -46,10 +33,14 @@ class AppConfig:
     ollama_keep_alive: str
     agent_event_limit: int
     max_history_messages: int
+    api_key: str
+    chat_rate_limit_per_minute: int
+    chat_rate_limit_window_seconds: int
+    video_feed_fps: int
 
 
 def load_config() -> AppConfig:
-    _load_env_file()
+    load_dotenv(override=False)
     return AppConfig(
         app_title=os.getenv("APP_TITLE", "AgroVision AI"),
         camera_source=_parse_source(os.getenv("CAMERA_SOURCE", "0")),
@@ -69,4 +60,10 @@ def load_config() -> AppConfig:
         ollama_keep_alive=os.getenv("OLLAMA_KEEP_ALIVE", "30m"),
         agent_event_limit=int(os.getenv("AGENT_EVENT_LIMIT", "12")),
         max_history_messages=int(os.getenv("MAX_HISTORY_MESSAGES", "8")),
+        api_key=os.getenv("API_KEY", "").strip(),
+        chat_rate_limit_per_minute=int(os.getenv("CHAT_RATE_LIMIT_PER_MINUTE", "20")),
+        chat_rate_limit_window_seconds=int(
+            os.getenv("CHAT_RATE_LIMIT_WINDOW_SECONDS", "60")
+        ),
+        video_feed_fps=max(1, int(os.getenv("VIDEO_FEED_FPS", "15"))),
     )

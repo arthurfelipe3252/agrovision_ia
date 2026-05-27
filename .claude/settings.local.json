@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(pip install:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(Get-ChildItem -Path \"C:\\\\E.S\\\\Quinto semestre\\\\tecnologias_emergentes\\\\agrovision_ia\" -Force -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object Name)",
+      "Bash(Format-Table -AutoSize)",
+      "PowerShell(@\\(\"uploads\", \"runs\", \"models\", \"dataset_agro\", \".claude\"\\) | ForEach-Object { Write-Host \"=== $_ ===\" ; ls -ErrorAction SilentlyContinue \"C:\\\\E.S\\\\Quinto semestre\\\\tecnologias_emergentes\\\\agrovision_ia\\\\$_\" })"
     ]
   }
 }

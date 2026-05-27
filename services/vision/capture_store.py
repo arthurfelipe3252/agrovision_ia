@@ -1,3 +1,5 @@
+"""Helpers de filesystem para capturas (JPEGs) geradas pelo pipeline de visão."""
+
 import os
 from datetime import datetime
 

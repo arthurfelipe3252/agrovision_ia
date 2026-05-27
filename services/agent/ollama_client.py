@@ -1,6 +1,12 @@
 import json
+import logging
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+
+from services.domain import LlmUnavailableError
+
+
+logger = logging.getLogger(__name__)
 
 
 class OllamaClient:
@@ -32,9 +38,11 @@ class OllamaClient:
                 raw_response = response.read().decode("utf-8")
         except HTTPError as error:
             detail = error.read().decode("utf-8", errors="ignore")
-            raise RuntimeError(f"Ollama HTTP {error.code}: {detail}") from error
+            logger.error("Ollama HTTP %s: %s", error.code, detail)
+            raise LlmUnavailableError() from error
         except URLError as error:
-            raise RuntimeError(f"Falha ao conectar no Ollama: {error.reason}") from error
+            logger.error("Ollama unreachable: %s", error.reason)
+            raise LlmUnavailableError() from error
 
         parsed = json.loads(raw_response)
         message = parsed.get("message", {})
@@ -59,13 +67,16 @@ class OllamaClient:
                         break
         except HTTPError as error:
             detail = error.read().decode("utf-8", errors="ignore")
-            raise RuntimeError(f"Ollama HTTP {error.code}: {detail}") from error
+            logger.error("Ollama stream HTTP %s: %s", error.code, detail)
+            raise LlmUnavailableError() from error
         except URLError as error:
-            raise RuntimeError(f"Falha ao conectar no Ollama: {error.reason}") from error
+            logger.error("Ollama stream unreachable: %s", error.reason)
+            raise LlmUnavailableError() from error
 
     def warmup(self) -> bool:
         try:
             _ = self.chat([{"role": "user", "content": "ping"}])
             return True
         except Exception:
+            logger.warning("Ollama warmup falhou; primeira pergunta sera mais lenta.")
             return False

@@ -1,12 +1,21 @@
+"""Adapter de persistência para `AlertEvent` em SQLite.
+
+Implementa o port `services.domain.EventStore`. Mantém o schema
+atual da tabela `events` e o formato de dict retornado por
+`list_recent` — esse dict é contrato público consumido por
+`/events` e pelo `dashboard.js`.
+"""
+
 import sqlite3
-from datetime import datetime
+
+from services.domain import AlertEvent
 
 
 class EventRepository:
     def __init__(self, db_path: str):
         self.db_path = db_path
 
-    def init_db(self) -> None:
+    def init(self) -> None:
         conn = sqlite3.connect(self.db_path)
         cur = conn.cursor()
         cur.execute(
@@ -23,7 +32,7 @@ class EventRepository:
         conn.commit()
         conn.close()
 
-    def save_event(self, event_id: str, label: str, confidence: float, image_path: str) -> None:
+    def save(self, event: AlertEvent) -> None:
         conn = sqlite3.connect(self.db_path)
         cur = conn.cursor()
         cur.execute(
@@ -31,12 +40,18 @@ class EventRepository:
             INSERT INTO events (id, event_time, label, confidence, image_path)
             VALUES (?, ?, ?, ?, ?)
             """,
-            (event_id, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), label, confidence, image_path),
+            (
+                event.event_id,
+                event.event_time,
+                event.label,
+                event.confidence,
+                event.image_path,
+            ),
         )
         conn.commit()
         conn.close()
 
-    def list_events(self, limit: int = 50) -> list[dict]:
+    def list_recent(self, limit: int = 50) -> list[dict]:
         conn = sqlite3.connect(self.db_path)
         cur = conn.cursor()
         cur.execute(
@@ -61,7 +76,7 @@ class EventRepository:
             for r in rows
         ]
 
-    def count_events(self) -> int:
+    def count(self) -> int:
         conn = sqlite3.connect(self.db_path)
         cur = conn.cursor()
         cur.execute("SELECT COUNT(*) FROM events")

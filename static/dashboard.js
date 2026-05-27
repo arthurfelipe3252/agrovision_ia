@@ -1,11 +1,67 @@
+const API_KEY_STORAGE = "agrovision_api_key";
+
 const img = document.getElementById("live-frame");
 const statusEl = document.getElementById("status");
 const eventsContainer = document.getElementById("events-container");
 const chatForm = document.getElementById("chat-form");
 const chatInput = document.getElementById("chat-input");
 const chatHistoryEl = document.getElementById("chat-history");
+const apiKeyCard = document.getElementById("api-key-card");
+const apiKeyForm = document.getElementById("api-key-form");
+const apiKeyInput = document.getElementById("api-key-input");
+const apiKeyStatus = document.getElementById("api-key-status");
+const apiKeyClear = document.getElementById("api-key-clear");
 
+const apiKeyRequired = document.body.dataset.apiKeyRequired === "true";
 const chatHistory = [];
+
+if (apiKeyRequired) {
+    apiKeyCard.hidden = false;
+    refreshApiKeyStatus();
+}
+
+function getApiKey() {
+    try {
+        return localStorage.getItem(API_KEY_STORAGE) || "";
+    } catch {
+        return "";
+    }
+}
+
+function setApiKey(value) {
+    try {
+        if (value) {
+            localStorage.setItem(API_KEY_STORAGE, value);
+        } else {
+            localStorage.removeItem(API_KEY_STORAGE);
+        }
+    } catch {
+        // ignore storage failures (private mode etc.)
+    }
+}
+
+function refreshApiKeyStatus() {
+    if (!apiKeyStatus) return;
+    const stored = getApiKey();
+    apiKeyStatus.textContent = stored
+        ? "Chave salva neste navegador."
+        : "Nenhuma chave salva. Funcoes protegidas ficarao indisponiveis.";
+}
+
+function authHeaders(extra) {
+    const headers = Object.assign({}, extra || {});
+    const key = getApiKey();
+    if (key) {
+        headers["X-API-Key"] = key;
+    }
+    return headers;
+}
+
+async function authFetch(url, options) {
+    const opts = Object.assign({}, options || {});
+    opts.headers = authHeaders(opts.headers);
+    return fetch(url, opts);
+}
 
 function addChatMessage(role, content, kind = "") {
     const div = document.createElement("div");
@@ -16,21 +72,53 @@ function addChatMessage(role, content, kind = "") {
     return div;
 }
 
-function refreshFrame() {
-    const newImg = new Image();
-    newImg.onload = function () {
-        img.src = newImg.src;
+function handleProtectedStatus(response) {
+    if (response.status === 401) {
+        statusEl.textContent = "Acesso negado. Verifique a API key.";
+        return true;
+    }
+    if (response.status === 429) {
+        statusEl.textContent = "Muitas requisicoes. Aguarde alguns segundos.";
+        return true;
+    }
+    return false;
+}
+
+async function refreshFrame() {
+    try {
+        const response = await authFetch("/frame");
+        if (handleProtectedStatus(response)) return;
+        if (response.status === 503) {
+            statusEl.textContent = "Aguardando camera...";
+            return;
+        }
+        if (!response.ok) {
+            statusEl.textContent = "Falha temporaria no feed.";
+            return;
+        }
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const previous = img.dataset.objectUrl;
+        if (previous) URL.revokeObjectURL(previous);
+        img.dataset.objectUrl = url;
+        img.src = url;
         statusEl.textContent = "Conectado";
-    };
-    newImg.onerror = function () {
-        statusEl.textContent = "Aguardando câmera...";
-    };
-    newImg.src = "/frame?" + Date.now();
+    } catch {
+        statusEl.textContent = "Aguardando camera...";
+    }
 }
 
 async function refreshEvents() {
     try {
-        const response = await fetch("/events");
+        const response = await authFetch("/events");
+        if (response.status === 401) {
+            eventsContainer.innerHTML = "<p class='no-events'>Acesso negado. Configure a API key.</p>";
+            return;
+        }
+        if (!response.ok) {
+            eventsContainer.innerHTML = "<p class='no-events'>Falha ao carregar eventos.</p>";
+            return;
+        }
         const events = await response.json();
         if (!events.length) {
             eventsContainer.innerHTML = "<p class='no-events'>Nenhum evento registrado ainda.</p>";
@@ -49,7 +137,7 @@ async function refreshEvents() {
         });
         html += "</tbody></table>";
         eventsContainer.innerHTML = html;
-    } catch (error) {
+    } catch {
         eventsContainer.innerHTML = "<p class='no-events'>Falha ao carregar eventos.</p>";
     }
 }
@@ -70,16 +158,21 @@ async function submitChat(event) {
     let fullAnswer = "";
 
     try {
-        const response = await fetch("/chat/stream", {
+        const response = await authFetch("/chat/stream", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ question, history: chatHistory }),
         });
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(errorText || "Falha no chat");
-        }
 
+        if (response.status === 401) {
+            throw new Error("Credenciais ausentes ou invalidas. Configure a API key.");
+        }
+        if (response.status === 429) {
+            throw new Error("Muitas perguntas em sequencia. Aguarde alguns segundos.");
+        }
+        if (!response.ok) {
+            throw new Error("Falha temporaria ao gerar resposta.");
+        }
         if (!response.body) {
             throw new Error("Resposta sem stream.");
         }
@@ -109,8 +202,29 @@ async function submitChat(event) {
     }
 }
 
+if (apiKeyForm) {
+    apiKeyForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const value = apiKeyInput.value.trim();
+        setApiKey(value);
+        apiKeyInput.value = "";
+        refreshApiKeyStatus();
+        refreshEvents();
+        refreshFrame();
+    });
+}
+
+if (apiKeyClear) {
+    apiKeyClear.addEventListener("click", () => {
+        setApiKey("");
+        apiKeyInput.value = "";
+        refreshApiKeyStatus();
+    });
+}
+
 chatForm.addEventListener("submit", submitChat);
 
 refreshEvents();
+refreshFrame();
 setInterval(refreshFrame, 250);
 setInterval(refreshEvents, 3000);

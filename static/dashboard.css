@@ -74,6 +74,26 @@ button {
 button:hover { opacity: 0.9; }
 .no-events { text-align: center; color: #888; padding: 30px; }
 
+.api-key-card { border-color: #3f4e78; }
+.api-key-card .hint { color: #99a3c2; font-size: 0.9em; margin-bottom: 10px; }
+.api-key-card input[type="password"] {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #3f4e78;
+    background: #0f1a33;
+    color: #eee;
+    margin-bottom: 10px;
+}
+.api-key-actions { display: flex; gap: 8px; }
+.api-key-actions button[type="button"] {
+    background: transparent;
+    border: 1px solid #3f4e78;
+    color: #99a3c2;
+}
+.api-key-actions button[type="button"]:hover { color: #eee; }
+.api-key-status { color: #99a3c2; font-size: 0.85em; margin-top: 10px; }
+
 @media (max-width: 960px) {
     .grid { grid-template-columns: 1fr; }
 }
