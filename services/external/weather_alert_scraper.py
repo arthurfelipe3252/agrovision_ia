@@ -1,4 +1,7 @@
-"""Scraper de alertas climaticos do INMET (RSS publico)."""
+"""Scraper de alertas climaticos do INMET (RSS publico).
+
+Adapter que implementa o port `services.domain.WeatherAlertSource`.
+"""
 
 from __future__ import annotations
 
@@ -12,11 +15,13 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 
+from services.domain import WeatherAlertSource
+
 
 logger = logging.getLogger(__name__)
 
 
-class InmetWeatherAlertScraper:
+class InmetWeatherAlertScraper(WeatherAlertSource):
     """Busca alertas climaticos do RSS publico do INMET com cache e rate limit."""
 
     def __init__(

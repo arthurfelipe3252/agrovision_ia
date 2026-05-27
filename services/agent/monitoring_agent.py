@@ -44,6 +44,31 @@ def normalize_history(
     return normalized
 
 
+def build_weather_context(payload: dict) -> str:
+    """Formata um payload de alertas climaticos como bloco de contexto.
+
+    Recebe o dict que vem de qualquer adapter `WeatherAlertSource`.
+    Funcao pura: nao faz I/O, nao depende do adapter concreto.
+    """
+    alerts = payload.get("alerts", []) if isinstance(payload, dict) else []
+    if not alerts:
+        return "Contexto climatico: sem alertas ativos no momento."
+
+    lines = [
+        "Contexto climatico (INMET):",
+        f"- Alertas ativos: {len(alerts)}",
+    ]
+    for alert in alerts[:3]:
+        title = str(alert.get("title", "")).strip()
+        area = str(alert.get("area", "")).strip()
+        if title:
+            if area:
+                lines.append(f"- {title} | Area: {area}")
+            else:
+                lines.append(f"- {title}")
+    return "\n".join(lines)
+
+
 def build_event_context(events: list[dict]) -> str:
     if not events:
         return "Contexto operacional: sem eventos recentes registrados no momento."

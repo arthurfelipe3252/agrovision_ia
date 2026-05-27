@@ -13,6 +13,7 @@ from services.agent.monitoring_agent import (
     AGENT_PROFILE,
     build_agent_messages,
     build_event_context,
+    build_weather_context,
 )
 from services.agent.ollama_client import OllamaClient
 from services.agent.schemas import ChatRequest
@@ -82,26 +83,6 @@ chat_rate_limiter: RateLimiter = InMemoryRateLimiter(
 )
 assert isinstance(chat_rate_limiter, RateLimiter), "chat_rate_limiter deve cumprir o port RateLimiter"
 assert isinstance(weather_alerts, WeatherAlertSource), "weather_alerts deve cumprir o port WeatherAlertSource"
-
-
-def build_weather_context(payload: dict) -> str:
-    alerts = payload.get("alerts", []) if isinstance(payload, dict) else []
-    if not alerts:
-        return "Contexto climatico: sem alertas ativos no momento."
-
-    lines = [
-        "Contexto climatico (INMET):",
-        f"- Alertas ativos: {len(alerts)}",
-    ]
-    for alert in alerts[:3]:
-        title = str(alert.get("title", "")).strip()
-        area = str(alert.get("area", "")).strip()
-        if title:
-            if area:
-                lines.append(f"- {title} | Area: {area}")
-            else:
-                lines.append(f"- {title}")
-    return "\n".join(lines)
 
 
 def enforce_chat_rate_limit(request: Request) -> None:
