@@ -93,6 +93,14 @@ class LlmClient(Protocol):
 
 
 @runtime_checkable
+class WeatherAlertSource(Protocol):
+    """Port para fontes externas de alertas climaticos."""
+
+    def fetch_alerts(self) -> dict:
+        ...
+
+
+@runtime_checkable
 class RateLimiter(Protocol):
     """Port para limitadores de taxa por identidade (IP, usuario, etc.)."""
 

@@ -6,6 +6,8 @@ const eventsContainer = document.getElementById("events-container");
 const chatForm = document.getElementById("chat-form");
 const chatInput = document.getElementById("chat-input");
 const chatHistoryEl = document.getElementById("chat-history");
+const weatherContainer = document.getElementById("weather-container");
+const weatherStatus = document.getElementById("weather-status");
 const apiKeyCard = document.getElementById("api-key-card");
 const apiKeyForm = document.getElementById("api-key-form");
 const apiKeyInput = document.getElementById("api-key-input");
@@ -142,6 +144,53 @@ async function refreshEvents() {
     }
 }
 
+function renderWeatherAlerts(payload) {
+    if (!weatherContainer) return;
+    if (!payload || !Array.isArray(payload.alerts)) {
+        weatherContainer.innerHTML = "<p class='no-events'>Sem dados climaticos.</p>";
+        return;
+    }
+
+    if (!payload.alerts.length) {
+        weatherContainer.innerHTML = "<p class='no-events'>Nenhum alerta ativo.</p>";
+        return;
+    }
+
+    let html = "<ul class='weather-alerts'>";
+    payload.alerts.forEach((alert) => {
+        const title = alert.title || "Alerta";
+        const severity = alert.severity ? ` - ${alert.severity}` : "";
+        const area = alert.area ? `<div class='weather-area'>${alert.area}</div>` : "";
+        const link = alert.link ? `<a href='${alert.link}' target='_blank' rel='noopener'>Detalhes</a>` : "";
+        html += `<li><strong>${title}${severity}</strong>${area}${link}</li>`;
+    });
+    html += "</ul>";
+    weatherContainer.innerHTML = html;
+}
+
+async function refreshWeatherAlerts() {
+    if (!weatherContainer) return;
+    try {
+        const response = await authFetch("/weather/alerts");
+        if (response.status === 401) {
+            weatherContainer.innerHTML = "<p class='no-events'>Acesso negado. Configure a API key.</p>";
+            return;
+        }
+        if (!response.ok) {
+            weatherContainer.innerHTML = "<p class='no-events'>Falha ao carregar alertas.</p>";
+            return;
+        }
+        const payload = await response.json();
+        renderWeatherAlerts(payload);
+        if (weatherStatus) {
+            const status = payload.status || "desconhecido";
+            weatherStatus.textContent = `Fonte: INMET | Status: ${status}`;
+        }
+    } catch {
+        weatherContainer.innerHTML = "<p class='no-events'>Falha ao carregar alertas.</p>";
+    }
+}
+
 async function submitChat(event) {
     event.preventDefault();
     const question = chatInput.value.trim();
@@ -211,6 +260,7 @@ if (apiKeyForm) {
         refreshApiKeyStatus();
         refreshEvents();
         refreshFrame();
+        refreshWeatherAlerts();
     });
 }
 
@@ -219,6 +269,9 @@ if (apiKeyClear) {
         setApiKey("");
         apiKeyInput.value = "";
         refreshApiKeyStatus();
+        refreshEvents();
+        refreshFrame();
+        refreshWeatherAlerts();
     });
 }
 
@@ -226,5 +279,7 @@ chatForm.addEventListener("submit", submitChat);
 
 refreshEvents();
 refreshFrame();
+refreshWeatherAlerts();
 setInterval(refreshFrame, 250);
 setInterval(refreshEvents, 3000);
+setInterval(refreshWeatherAlerts, 5 * 60 * 1000);

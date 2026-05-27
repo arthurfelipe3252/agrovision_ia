@@ -37,6 +37,9 @@ class AppConfig:
     chat_rate_limit_per_minute: int
     chat_rate_limit_window_seconds: int
     video_feed_fps: int
+    weather_alerts_url: str
+    weather_alerts_min_interval_seconds: int
+    weather_alerts_max_items: int
 
 
 def load_config() -> AppConfig:
@@ -66,4 +69,12 @@ def load_config() -> AppConfig:
             os.getenv("CHAT_RATE_LIMIT_WINDOW_SECONDS", "60")
         ),
         video_feed_fps=max(1, int(os.getenv("VIDEO_FEED_FPS", "15"))),
+        weather_alerts_url=os.getenv(
+            "WEATHER_ALERTS_URL",
+            "https://apiprevmet3.inmet.gov.br/avisos/rss",
+        ),
+        weather_alerts_min_interval_seconds=int(
+            os.getenv("WEATHER_ALERTS_MIN_INTERVAL_SECONDS", "900")
+        ),
+        weather_alerts_max_items=int(os.getenv("WEATHER_ALERTS_MAX_ITEMS", "8")),
     )

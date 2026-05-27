@@ -74,6 +74,34 @@ button {
 button:hover { opacity: 0.9; }
 .no-events { text-align: center; color: #888; padding: 30px; }
 
+.weather-alerts {
+    list-style: none;
+    display: grid;
+    gap: 12px;
+}
+
+.weather-alerts li {
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid #2b3654;
+    background: #101a30;
+}
+
+.weather-alerts a {
+    display: inline-block;
+    margin-top: 6px;
+    color: #7ef2b9;
+    text-decoration: none;
+}
+
+.weather-alerts a:hover { text-decoration: underline; }
+
+.weather-area {
+    margin-top: 6px;
+    color: #c0c8e6;
+    font-size: 0.9em;
+}
+
 .api-key-card { border-color: #3f4e78; }
 .api-key-card .hint { color: #99a3c2; font-size: 0.9em; margin-bottom: 10px; }
 .api-key-card input[type="password"] {

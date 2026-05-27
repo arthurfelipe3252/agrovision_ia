@@ -87,6 +87,7 @@ def build_agent_messages(
     max_history_messages: int,
     sanitize_user: Callable[[str], str] = _identity,
     defensive_rules: str | None = None,
+    external_context: str | None = None,
 ) -> list[dict]:
     system_prompt = (
         f"Voce e o {AGENT_PROFILE.name}, um agente de {AGENT_PROFILE.role}. "
@@ -103,6 +104,8 @@ def build_agent_messages(
     if defensive_rules:
         messages.append({"role": "system", "content": defensive_rules})
     messages.append({"role": "system", "content": build_event_context(events)})
+    if external_context:
+        messages.append({"role": "system", "content": external_context})
     messages.extend(
         normalize_history(history, max_messages=max_history_messages, sanitize_user=sanitize_user)
     )

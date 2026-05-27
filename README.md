@@ -43,6 +43,7 @@ Dependências estão em `requirements.txt`.
 - **Dashboard**: mostra feed e eventos.
 - **Ollama**: gera respostas em linguagem natural.
 - **Agente**: organiza contexto, regras e objetivo para o modelo.
+- **Scraping (INMET)**: coleta alertas climaticos publicos para enriquecer o contexto.
 
 ## 5) Diferença entre YOLO, Ollama e agente
 
@@ -60,12 +61,14 @@ Resumo curto:
 Estrutura principal implementada:
 - `app.py`
 - `services/config.py`
-- `services/schemas.py`
-- `services/event_repository.py`
-- `services/capture_store.py`
+- `services/domain.py`
 - `services/video_monitor.py`
-- `services/ollama_client.py`
-- `services/monitoring_agent.py`
+- `services/vision/yolo_detector.py`
+- `services/alerts/alert_engine.py`
+- `services/persistence/event_repository.py`
+- `services/agent/monitoring_agent.py`
+- `services/agent/ollama_client.py`
+- `services/external/weather_alert_scraper.py`
 - `templates/index.html`
 - `static/dashboard.css`
 - `static/dashboard.js`
@@ -108,6 +111,11 @@ OLLAMA_TIMEOUT=120
 OLLAMA_KEEP_ALIVE=30m
 AGENT_EVENT_LIMIT=12
 MAX_HISTORY_MESSAGES=8
+
+# Web scraping (alertas climaticos)
+WEATHER_ALERTS_URL=https://apiprevmet3.inmet.gov.br/avisos/rss
+WEATHER_ALERTS_MIN_INTERVAL_SECONDS=900
+WEATHER_ALERTS_MAX_ITEMS=8
 ```
 
 Observação: não versionar `.env` com credenciais, chaves ou fontes privadas.
@@ -168,14 +176,35 @@ O agente:
 
 Ele interpreta eventos já detectados e sugere próxima ação.
 
-## 15) Aprendizados desta evolução
+## 15) Parte 4 — Camada de Web Scraping (o que foi feito)
+
+Escolha: **alertas climaticos oficiais do INMET**, pois eventos de chuva intensa, tempestade ou geada alteram o risco quando ha pessoas e veiculos no monitoramento.
+
+Implementacao:
+- **Servico separado**: adapter em `services/external/weather_alert_scraper.py`.
+- **Fonte publica e gratuita**: RSS do INMET (https://apiprevmet3.inmet.gov.br/avisos/rss).
+- **Tratamento de erro**: retorna `status: error` ou `status: stale` com cache.
+- **Rate limit**: intervalo minimo configuravel por `.env`.
+- **JSON estruturado**: payload com `alerts` e campos normalizados.
+- **Integracao**: endpoint `/weather/alerts`, card no dashboard e contexto no agente.
+
+Checklist dos requisitos do professor:
+- Funcao/servico separado para scraping: OK.
+- Fonte publica e gratuita: OK.
+- Tratamento de erro quando fora do ar: OK.
+- Limite de requisicoes: OK.
+- Dados em JSON estruturado: OK.
+- Integracao com API/tela/agente: OK.
+- Justificativa de relevancia: OK.
+
+## 16) Aprendizados desta evolução
 
 - Separação de responsabilidades melhora manutenção.
 - IA visual e IA de linguagem têm papéis diferentes.
 - Agente é arquitetura de uso do modelo, não "modelo novo".
 - Observabilidade por rotas reduz tempo de diagnóstico.
 
-## 16) Roteiro sugerido de aula
+## 17) Roteiro sugerido de aula
 
 1. Base do projeto (FastAPI + YOLO + SQLite)
 2. Ollama local
@@ -183,14 +212,14 @@ Ele interpreta eventos já detectados e sugere próxima ação.
 4. Câmera pública/autorizada
 5. Pipeline completo e próximos passos
 
-## 17) Perguntas boas para testar o agente
+## 18) Perguntas boas para testar o agente
 
 - "O que foi detectado nos últimos eventos?"
 - "Existe padrão no monitoramento atual?"
 - "Qual o risco operacional agora?"
 - "Qual próxima ação recomendada?"
 
-## 18) Problemas comuns
+## 19) Problemas comuns
 
 - **Ollama não responde**: validar `http://127.0.0.1:11434/api/tags` e usar `ollama serve`.
 - **Modelo ausente**: `ollama pull llama3`.

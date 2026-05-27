@@ -18,7 +18,8 @@ from services.agent.ollama_client import OllamaClient
 from services.agent.schemas import ChatRequest
 from services.alerts.alert_engine import AlertEngine
 from services.config import load_config
-from services.domain import LlmUnavailableError, RateLimiter
+from services.domain import LlmUnavailableError, RateLimiter, WeatherAlertSource
+from services.external.weather_alert_scraper import InmetWeatherAlertScraper
 from services.persistence.event_repository import EventRepository
 from services.security.auth import build_api_key_dependency
 from services.security.errors import (
@@ -68,6 +69,11 @@ ollama_client = OllamaClient(
     timeout=config.ollama_timeout,
     keep_alive=config.ollama_keep_alive,
 )
+weather_alerts: WeatherAlertSource = InmetWeatherAlertScraper(
+    feed_url=config.weather_alerts_url,
+    min_interval_seconds=config.weather_alerts_min_interval_seconds,
+    max_items=config.weather_alerts_max_items,
+)
 
 require_api_key = build_api_key_dependency(config.api_key)
 chat_rate_limiter: RateLimiter = InMemoryRateLimiter(
@@ -75,6 +81,27 @@ chat_rate_limiter: RateLimiter = InMemoryRateLimiter(
     window_seconds=config.chat_rate_limit_window_seconds,
 )
 assert isinstance(chat_rate_limiter, RateLimiter), "chat_rate_limiter deve cumprir o port RateLimiter"
+assert isinstance(weather_alerts, WeatherAlertSource), "weather_alerts deve cumprir o port WeatherAlertSource"
+
+
+def build_weather_context(payload: dict) -> str:
+    alerts = payload.get("alerts", []) if isinstance(payload, dict) else []
+    if not alerts:
+        return "Contexto climatico: sem alertas ativos no momento."
+
+    lines = [
+        "Contexto climatico (INMET):",
+        f"- Alertas ativos: {len(alerts)}",
+    ]
+    for alert in alerts[:3]:
+        title = str(alert.get("title", "")).strip()
+        area = str(alert.get("area", "")).strip()
+        if title:
+            if area:
+                lines.append(f"- {title} | Area: {area}")
+            else:
+                lines.append(f"- {title}")
+    return "\n".join(lines)
 
 
 def enforce_chat_rate_limit(request: Request) -> None:
@@ -173,12 +200,15 @@ def video_feed():
 @app.get("/agent/status", dependencies=[Depends(require_api_key)])
 def agent_status():
     recent_events = event_repository.list_recent(config.agent_event_limit)
+    weather_payload = weather_alerts.fetch_alerts()
     return {
         "name": AGENT_PROFILE.name,
         "role": AGENT_PROFILE.role,
         "goal": AGENT_PROFILE.goal,
         "events_in_context": len(recent_events),
         "context_preview": build_event_context(recent_events)[:600],
+        "weather_alerts_status": weather_payload.get("status"),
+        "weather_alerts_count": len(weather_payload.get("alerts", [])),
     }
 
 
@@ -188,6 +218,7 @@ def agent_status():
 )
 def chat_stream(payload: ChatRequest):
     events = event_repository.list_recent(config.agent_event_limit)
+    weather_payload = weather_alerts.fetch_alerts()
     messages = build_agent_messages(
         question=payload.question,
         history=[m.model_dump() for m in payload.history],
@@ -195,6 +226,7 @@ def chat_stream(payload: ChatRequest):
         max_history_messages=config.max_history_messages,
         sanitize_user=sanitize_user_prompt,
         defensive_rules=DEFENSIVE_SYSTEM_RULES,
+        external_context=build_weather_context(weather_payload),
     )
 
     def stream_generator():
@@ -209,3 +241,8 @@ def chat_stream(payload: ChatRequest):
             yield f"\n{GENERIC_AGENT_ERROR}"
 
     return StreamingResponse(stream_generator(), media_type="text/plain; charset=utf-8")
+
+
+@app.get("/weather/alerts", dependencies=[Depends(require_api_key)])
+def weather_alerts_status():
+    return JSONResponse(content=weather_alerts.fetch_alerts())

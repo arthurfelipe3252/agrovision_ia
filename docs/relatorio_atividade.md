@@ -145,11 +145,11 @@ def _process_frame(self, frame):
 
 ### 1.8 Camada de integração externa
 
-A única integração externa que existe hoje é o `OllamaClient`. Mesmo rodando em localhost, ele se comunica por HTTP, tem timeout configurável e implementa o port `LlmClient` — então funciona como adapter genuíno. A pasta `services/external/` foi criada vazia para receber o scraper da Parte 4.
+A integração externa inclui o `OllamaClient` (LLM local por HTTP) e o scraper de alertas climaticos do INMET. Ambos implementam ports dedicados (`LlmClient` e `WeatherAlertSource`) e entram no sistema como adapters genuinos, respeitando o padrão Hexagonal.
 
 ### 1.9 Camada de web scraping
 
-Inexistente em código, mas **estruturalmente reservada**. Decidimos antecipadamente que ela será **serviço separado** em `services/external/`, cumprindo um novo port em `services/domain.py`. Em nenhum momento haverá `requests.get(...)` ou `BeautifulSoup(...)` dentro de uma rota ou template.
+Implementada como **serviço separado** em `services/external/weather_alert_scraper.py`, consumindo o RSS publico do INMET e devolvendo um JSON estruturado com alertas. O adapter aplica cache + rate limit e trata falhas da fonte, mantendo a regra de negocio fora das rotas.
 
 ### 1.10 Respostas às cinco perguntas obrigatórias
 
@@ -157,7 +157,7 @@ Inexistente em código, mas **estruturalmente reservada**. Decidimos antecipadam
 2. **O backend concentra a lógica principal?** Sim. `app.py` é fino; toda inteligência vive nas camadas de aplicação e infraestrutura.
 3. **O acesso ao banco está isolado?** Sim. Uma busca por `sqlite3` no projeto inteiro retorna apenas `services/persistence/event_repository.py`.
 4. **A chamada ao modelo de IA/YOLO está separada da regra de negócio?** **Sim, após o refator.** `YoloDetector` cuida do modelo; `AlertEngine` cuida da regra; `VideoMonitor` orquestra os dois via ports.
-5. **A camada de scraping será serviço separado?** Sim. O lugar arquitetural (`services/external/`) já está reservado; o adapter implementará um novo port.
+5. **A camada de scraping será serviço separado?** Sim. Ela foi implementada em `services/external/` e exposta por um port (`WeatherAlertSource`).
 
 ### 1.11 Estrutura final pós-refator
 
@@ -173,7 +173,7 @@ agrovision_ia/
 │   ├── persistence/ event_repository.py
 │   ├── agent/       monitoring_agent.py, ollama_client.py, schemas.py
 │   ├── security/    (Parte 2)
-│   └── external/    (Parte 4)
+│   └── external/    weather_alert_scraper.py
 ├── templates/index.html
 ├── static/{dashboard.css, dashboard.js, captures/}
 ├── docs/relatorio_atividade.md
@@ -185,7 +185,7 @@ agrovision_ia/
 
 - `_process_frame`: de **46 linhas (6 responsabilidades) para 6 linhas (uma: orquestrar)**.
 - `services/` flat: de **8 arquivos** para **3 arquivos relevantes na raiz + 5 subpacotes** (o subpacote `security/` seria adicionado depois na Parte 2, fechando em 6).
-- **4 Protocols** introduzidos nesta fase em `services/domain.py` (`Detector`, `AlertGate`, `EventStore`, `LlmClient`), todos validados por `isinstance` no boot. Um quinto port (`RateLimiter`) chegaria na Parte 2.
+- **4 Protocols** introduzidos nesta fase em `services/domain.py` (`Detector`, `AlertGate`, `EventStore`, `LlmClient`), todos validados por `isinstance` no boot. Um quinto port (`RateLimiter`) chegaria na Parte 2. Na Parte 4, somamos o `WeatherAlertSource`.
 - **2 value objects** (`Detection`, `AlertEvent`).
 - Comportamento funcional: **idêntico** ao anterior — mesmos eventos, mesmo JSON, mesma resposta do agente (validado manualmente subindo o servidor).
 
@@ -437,13 +437,24 @@ Cada refator foi confirmado por inspeção estática (verificando que os trechos
 
 ## Parte 4 — Implementação de uma Camada de Web Scraping
 
-> _Esta parte ficará a cargo de outro membro do grupo. O terreno arquitetural já está preparado: o subpacote `services/external/` foi criado vazio durante a Parte 1, e o padrão Hexagonal estabelecido permite que o futuro adapter entre sem refator adicional — basta criar um novo `Protocol` em `services/domain.py` representando a fonte externa, implementar o adapter em `services/external/`, e injetá-lo no composition root (`app.py`)._
+Implementamos a camada de scraping com foco em **alertas climaticos oficiais do INMET**, usando o feed RSS publico (`https://apiprevmet3.inmet.gov.br/avisos/rss`). A justificativa e simples: chuva intensa, tempestade, baixa umidade ou geada impactam diretamente o risco operacional quando o sistema detecta pessoas e veiculos no video. Esse contexto melhora a interpretacao dos eventos pelo agente e oferece sinal adicional no dashboard.
+
+**O que foi feito:**
+
+- **Port novo em `services/domain.py`:** `WeatherAlertSource`.
+- **Adapter em `services/external/`:** `InmetWeatherAlertScraper`, que faz download do RSS, extrai campos do HTML do item e entrega um JSON estruturado.
+- **Rate limit e cache:** intervalo minimo configuravel (`WEATHER_ALERTS_MIN_INTERVAL_SECONDS`) para evitar excesso de requisicoes.
+- **Tratamento de erro:** se a fonte estiver fora do ar, o sistema devolve cache recente com status `stale` ou payload vazio com status `error`.
+- **Integracao com o sistema:** endpoint protegido `/weather/alerts` e inclusao do contexto climatico no prompt do agente.
+- **Configuracao via `.env`:** URL do feed, intervalo minimo e limite maximo de itens.
+
+Essa implementacao cumpre o requisito de scraping como servico separado, uso de fonte publica e gratuita, controle de requisicoes, tratamento de falhas, JSON estruturado e integracao com a API e a UI.
 
 ---
 
 ## Conclusão
 
-Encerramos as **três fases que ficaram sob nossa responsabilidade** com a sensação de que a entrega resolveu o que a atividade pediu sem inventar problemas extras. A Parte 4 (web scraping) será conduzida por outro membro do grupo, e o caminho já está preparado: o subpacote `services/external/` existe vazio, e o padrão Hexagonal que adotamos permite que o adapter de scraping entre como mais um, sem refator adicional.
+Encerramos a atividade com a sensação de que a entrega resolveu o que foi pedido sem inventar problemas extras. A Parte 4 (web scraping) foi implementada como adapter em `services/external/`, mantendo o padrão Hexagonal e integrando alertas climaticos do INMET ao dashboard e ao agente.
 
 ### O que ficou pronto
 
@@ -460,7 +471,6 @@ Encerramos as **três fases que ficaram sob nossa responsabilidade** com a sensa
 
 ### O que continuou aberto
 
-- **Parte 4 (web scraping):** responsabilidade do outro membro do grupo.
 - **Itens documentados como aceitos** ao longo das Partes 2 e 3 (API key estática, rate limiter single-process, capturas sem ACL, ausência de audit log) — todos com caminho de evolução registrado, caso o projeto saia do escopo didático.
 
 ### Mensagem final
@@ -471,4 +481,4 @@ O AgroVision AI saiu desta revisão com **arquitetura mais defensável**, **supe
 
 ## Apêndice — Estrutura Final do Projeto
 
-> _A árvore final consolidada será adicionada após o fechamento da Parte 4, para refletir o estado do projeto com o adapter de scraping em `services/external/`._
+> _A árvore final consolidada reflete o estado atual do projeto com o adapter de scraping em `services/external/`._
